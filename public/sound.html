@@ -223,16 +223,24 @@
       <div class="section" id="click-params">
         <div class="section-title">Click Params</div>
         <div class="param-row">
-          <label>Max Rate <span id="val-maxrate">25 /sec</span></label>
-          <input id="sl-maxrate" type="range" min="1" max="60" step="1" value="25">
+          <label>Max Rate <span id="val-maxrate">4 /sec</span></label>
+          <input id="sl-maxrate" type="range" min="0.5" max="20" step="0.5" value="4">
         </div>
         <div class="param-row">
-          <label>Length <span id="val-clicklen">12 ms</span></label>
-          <input id="sl-clicklen" type="range" min="2" max="60" step="1" value="12">
+          <label>Rate Curve Exp <span id="val-rateexp">2</span></label>
+          <input id="sl-rateexp" type="range" min="0.5" max="4" step="0.1" value="2">
         </div>
         <div class="param-row">
-          <label>Rate Divisor <span id="val-ratediv">8</span></label>
-          <input id="sl-ratediv" type="range" min="1" max="50" step="1" value="8">
+          <label>Length <span id="val-clicklen">30 ms</span></label>
+          <input id="sl-clicklen" type="range" min="2" max="80" step="1" value="30">
+        </div>
+        <div class="param-row">
+          <label>Decay Exp <span id="val-decayexp">3</span></label>
+          <input id="sl-decayexp" type="range" min="0.5" max="10" step="0.5" value="3">
+        </div>
+        <div class="param-row">
+          <label>Gain <span id="val-clickgain">0.8</span></label>
+          <input id="sl-clickgain" type="range" min="0.1" max="2" step="0.1" value="0.8">
         </div>
       </div>
 
@@ -263,6 +271,6 @@
 
     </div>
   </div>
-  <script src="sound.js?v=3"></script>
+  <script src="sound.js?v=4"></script>
 </body>
 </html>
