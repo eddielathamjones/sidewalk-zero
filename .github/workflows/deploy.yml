@@ -1,13 +1,12 @@
-# Pulls the latest code on the home server and rebuilds the Docker container
-# whenever main is updated.
+# Pulls the latest code on the home server, rebuilds the Docker container,
+# and purges the Cloudflare edge cache whenever main is updated.
 #
 # One-time setup:
-#   1. Register a self-hosted runner for this repo:
-#      GitHub → repo → Settings → Actions → Runners → New self-hosted runner
-#      Follow the instructions on the server (same runner host as other GIS projects)
-#   2. Add DEPLOY_PATH as a repository variable:
-#      GitHub → repo → Settings → Secrets and variables → Actions → Variables
-#      Name: DEPLOY_PATH  Value: /home/eddie/repos/sidewalk-zero
+#   1. DEPLOY_PATH repo variable (already set):
+#      /home/eddie/repos/sidewalk-zero
+#   2. CF_ZONE_ID repo secret — find in Cloudflare dashboard → eddielathamjones.com → Overview → right sidebar
+#   3. CF_API_TOKEN repo secret — Cloudflare dashboard → My Profile → API Tokens
+#      → Create Token → use "Cache Purge" template, scope to eddielathamjones.com zone
 
 name: Deploy
 
@@ -17,7 +16,7 @@ on:
 
 jobs:
   deploy:
-    name: Pull and rebuild
+    name: Pull, rebuild, purge cache
     runs-on: self-hosted
 
     steps:
@@ -26,6 +25,14 @@ jobs:
 
       - name: Rebuild and restart container
         run: docker compose -f /home/eddie/docker/gis/docker-compose.yml up -d --build sidewalk-zero
+
+      - name: Purge Cloudflare edge cache
+        if: ${{ secrets.CF_API_TOKEN != '' }}
+        run: |
+          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CF_ZONE_ID }}/purge_cache" \
+            -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}' | grep -o '"success":[a-z]*'
 
       - name: Confirm
         run: |
