@@ -11,10 +11,12 @@ const readingEl     = document.getElementById('reading');
 const statusEl      = document.getElementById('status');
 const muteBtn       = document.getElementById('mute-btn');
 const modeBtn       = document.getElementById('mode-btn');
+const radiusSlider  = document.getElementById('radius-slider');
+const radiusLabel   = document.getElementById('radius-label');
 
 // --- Tuning constants (adjust during field testing) ---
 const REFERENCE_DIST_M = 15;   // score halves at this distance from a fatality
-const RADIUS_M         = 500;  // ignore fatalities beyond this
+let   RADIUS_M         = 500;  // ignore fatalities beyond this
 const DISPLAY_SCALE    = 400;  // raw score × DISPLAY_SCALE = display number
 const YELLOW_THRESHOLD = 40;   // display number where screen turns amber
 const RED_THRESHOLD    = 150;  // display number where screen turns red
@@ -151,7 +153,9 @@ function handleOrientation(e) {
 
 // ---- GPS ----
 
-let watchId = null;
+let watchId  = null;
+let lastLat  = null;
+let lastLon  = null;
 
 function startReading() {
   console.log('[sw0] startReading called');
@@ -166,6 +170,8 @@ function startReading() {
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
       const { latitude, longitude, accuracy } = pos.coords;
+      lastLat = latitude;
+      lastLon = longitude;
       console.log(`[sw0] position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} ±${Math.round(accuracy)}m heading: ${currentHeading}`);
       const score = computeScore(latitude, longitude, currentHeading);
       applyScore(score);
@@ -278,6 +284,12 @@ modeBtn.addEventListener('click', () => {
     toneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
   }
   updateAudio(lastDisplay);
+});
+
+radiusSlider.addEventListener('input', () => {
+  RADIUS_M = parseInt(radiusSlider.value, 10);
+  radiusLabel.textContent = `RADIUS: ${RADIUS_M}m`;
+  if (lastLat !== null) applyScore(computeScore(lastLat, lastLon, currentHeading));
 });
 
 loadIncidents();

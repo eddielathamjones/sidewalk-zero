@@ -95,6 +95,51 @@ html, body {
   margin-bottom: 3rem;
 }
 
+#radius-control {
+  position: fixed;
+  bottom: max(5.5rem, calc(env(safe-area-inset-bottom) + 4rem));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+#radius-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  opacity: 0.45;
+  text-transform: uppercase;
+}
+
+#radius-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: clamp(180px, 50vw, 320px);
+  height: 2px;
+  background: rgba(232, 232, 232, 0.2);
+  outline: none;
+  cursor: pointer;
+}
+
+#radius-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(232, 232, 232, 0.7);
+  cursor: pointer;
+}
+
+#radius-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(232, 232, 232, 0.7);
+  cursor: pointer;
+}
+
 #controls {
   display: flex;
   gap: 1rem;
