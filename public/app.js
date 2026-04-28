@@ -11,15 +11,16 @@ const readingEl     = document.getElementById('reading');
 const statusEl      = document.getElementById('status');
 const muteBtn       = document.getElementById('mute-btn');
 const modeBtn       = document.getElementById('mode-btn');
+const omniBtn       = document.getElementById('omni-btn');
 const radiusSlider  = document.getElementById('radius-slider');
 const radiusLabel   = document.getElementById('radius-label');
 
 // --- Tuning constants (adjust during field testing) ---
-const REFERENCE_DIST_M = 15;   // score halves at this distance from a fatality
-let   RADIUS_M         = 500;  // ignore fatalities beyond this
-const DISPLAY_SCALE    = 400;  // raw score × DISPLAY_SCALE = display number
-const YELLOW_THRESHOLD = 40;   // display number where screen turns amber
-const RED_THRESHOLD    = 150;  // display number where screen turns red
+const REFERENCE_DIST_M = 129;  // score halves at this distance from a fatality
+let   RADIUS_M         = 1750; // ignore fatalities beyond this
+const DISPLAY_SCALE    = 320;  // raw score × DISPLAY_SCALE = display number
+const YELLOW_THRESHOLD = 92;   // display number where screen turns amber
+const RED_THRESHOLD    = 418;  // display number where screen turns red
 
 // --- Demo coordinates (kept for offline testing) ---
 // Pharr TX cluster: 25.92269, -97.43182 → display 999
@@ -116,6 +117,17 @@ beginBtn.addEventListener('click', () => {
   startReading();
 });
 
+// ---- Omni mode ----
+
+let omniMode = true;
+
+omniBtn.addEventListener('click', () => {
+  omniMode = !omniMode;
+  omniBtn.textContent = omniMode ? 'OMNI' : 'DIR';
+  omniBtn.classList.toggle('active', omniMode);
+  if (lastLat !== null) applyScore(computeScore(lastLat, lastLon, omniMode ? null : currentHeading));
+});
+
 // ---- Compass ----
 
 let currentHeading = null;
@@ -173,7 +185,7 @@ function startReading() {
       lastLat = latitude;
       lastLon = longitude;
       console.log(`[sw0] position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} ±${Math.round(accuracy)}m heading: ${currentHeading}`);
-      const score = computeScore(latitude, longitude, currentHeading);
+      const score = computeScore(latitude, longitude, omniMode ? null : currentHeading);
       applyScore(score);
       setStatus(`GPS ±${Math.round(accuracy)}m`);
     },
