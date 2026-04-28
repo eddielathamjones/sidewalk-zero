@@ -241,9 +241,9 @@ function initAudio() {
 }
 
 function clickRate(display) {
-  // Quadratic curve: sparse at low scores, 4/sec at max
+  // Quadratic curve: sparse at low scores, 14/sec at max
   if (display === 0) return 0;
-  return 4 * Math.pow(display / 999, 2);
+  return 14 * Math.pow(display / 999, 2);
 }
 
 function fireClick() {
