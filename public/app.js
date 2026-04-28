@@ -99,7 +99,9 @@ beginBtn.addEventListener('click', () => {
 let watchId = null;
 
 function startReading() {
+  console.log('[sw0] startReading called');
   if (!navigator.geolocation) {
+    console.log('[sw0] geolocation not available');
     setStatus('geolocation not available');
     return;
   }
@@ -109,15 +111,19 @@ function startReading() {
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
       const { latitude, longitude, accuracy } = pos.coords;
+      console.log(`[sw0] position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} ±${Math.round(accuracy)}m`);
       const score = computeScore(latitude, longitude);
       applyScore(score);
-      setStatus(accuracy < 20 ? '' : `±${Math.round(accuracy)}m`);
+      setStatus(`±${Math.round(accuracy)}m`);
     },
     (err) => {
+      console.log(`[sw0] geolocation error: code=${err.code} message=${err.message}`);
       setStatus(gpsErrorMessage(err));
     },
     { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
   );
+
+  console.log('[sw0] watchPosition registered, watchId:', watchId);
 }
 
 function gpsErrorMessage(err) {
