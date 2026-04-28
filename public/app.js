@@ -12,6 +12,7 @@ const statusEl      = document.getElementById('status');
 const muteBtn       = document.getElementById('mute-btn');
 const modeBtn       = document.getElementById('mode-btn');
 const omniBtn       = document.getElementById('omni-btn');
+const vibBtn        = document.getElementById('vib-btn');
 const radiusSlider  = document.getElementById('radius-slider');
 const radiusLabel   = document.getElementById('radius-label');
 
@@ -114,6 +115,7 @@ beginBtn.addEventListener('click', () => {
   mainView.hidden = false;
   initAudio();              // must happen inside a user gesture to unlock iOS audio
   requestCompassPermission(); // iOS 13+ requires user gesture for orientation
+  if (!navigator.vibrate) vibBtn.classList.add('no-vibrate');
   startReading();
 });
 
@@ -216,6 +218,7 @@ function setStatus(msg) {
 
 let audioCtx    = null;
 let soundOn     = true;
+let vibOn       = false;
 let soundMode   = 'click';   // 'click' | 'tone'
 let clickTimer  = null;
 let toneOsc     = null;
@@ -227,7 +230,6 @@ function initAudio() {
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   audioCtx.resume();
 
-  // Tone engine — always running, gain set to 0 when silent
   toneOsc  = audioCtx.createOscillator();
   toneGain = audioCtx.createGain();
   toneOsc.type = 'sawtooth';
@@ -238,21 +240,44 @@ function initAudio() {
   toneOsc.start();
 }
 
+function clickRate(display) {
+  // Quadratic curve: sparse at low scores, 4/sec at max
+  if (display === 0) return 0;
+  return 4 * Math.pow(display / 999, 2);
+}
+
 function fireClick() {
   if (!audioCtx || !soundOn || soundMode !== 'click') return;
-  const len = Math.floor(audioCtx.sampleRate * 0.012);
+  const len = Math.floor(audioCtx.sampleRate * 0.030);
   const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
   const d   = buf.getChannelData(0);
   for (let i = 0; i < len; i++) {
-    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
   }
   const src  = audioCtx.createBufferSource();
   const gain = audioCtx.createGain();
   src.buffer = buf;
-  gain.gain.value = 0.5;
+  gain.gain.value = 0.8;
   src.connect(gain);
   gain.connect(audioCtx.destination);
   src.start();
+  if (vibOn && navigator.vibrate) navigator.vibrate(18);
+}
+
+function scheduleNextClick() {
+  if (!audioCtx || !soundOn || soundMode !== 'click') return;
+  const rate = clickRate(lastDisplay);
+  if (rate === 0) return;
+  // Poisson process: interarrival times are exponentially distributed
+  const delay = -Math.log(Math.random()) / rate * 1000;
+  clickTimer = setTimeout(() => {
+    fireClick();
+    scheduleNextClick();
+  }, delay);
+}
+
+function stopClicks() {
+  if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
 }
 
 function updateAudio(display) {
@@ -260,10 +285,8 @@ function updateAudio(display) {
   if (!audioCtx || !soundOn) return;
 
   if (soundMode === 'click') {
-    // clicks/sec: 0 when silent, 0.2 minimum when any danger, up to 25 at max
-    const rate = display === 0 ? 0 : Math.max(0.2, Math.min(25, display / 8));
-    if (clickTimer) { clearInterval(clickTimer); clickTimer = null; }
-    if (rate > 0) clickTimer = setInterval(fireClick, 1000 / rate);
+    stopClicks();
+    scheduleNextClick();
   } else {
     // tone: 80 Hz quiet hum → 1000 Hz at max
     const t    = Math.min(1, display / 999);
@@ -279,7 +302,7 @@ muteBtn.addEventListener('click', () => {
   soundOn = !soundOn;
   muteBtn.textContent = soundOn ? 'MUTE' : 'UNMUTE';
   if (!soundOn) {
-    if (clickTimer) { clearInterval(clickTimer); clickTimer = null; }
+    stopClicks();
     toneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
   } else {
     updateAudio(lastDisplay);
@@ -289,13 +312,17 @@ muteBtn.addEventListener('click', () => {
 modeBtn.addEventListener('click', () => {
   soundMode = soundMode === 'click' ? 'tone' : 'click';
   modeBtn.textContent = soundMode.toUpperCase();
-  // Silence whichever engine we're leaving
   if (soundMode === 'tone') {
-    if (clickTimer) { clearInterval(clickTimer); clickTimer = null; }
+    stopClicks();
   } else {
     toneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
   }
   updateAudio(lastDisplay);
+});
+
+vibBtn.addEventListener('click', () => {
+  vibOn = !vibOn;
+  vibBtn.classList.toggle('active', vibOn);
 });
 
 radiusSlider.addEventListener('input', () => {
