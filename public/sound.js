@@ -2,7 +2,7 @@
 
 // --- State ---
 let P = {
-  score    : 0,
+  score    : 200,
   maxRate  : 25,
   clickLen : 12,
   rateDiv  : 8,
@@ -39,10 +39,10 @@ function scoreToColor(val) {
 }
 
 // --- Audio init (must be called from user gesture) ---
-function initAudio() {
-  if (audioCtx) return;
+async function initAudio() {
+  if (audioCtx) { await audioCtx.resume(); return; }
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  audioCtx.resume();
+  await audioCtx.resume();
 
   toneOsc  = audioCtx.createOscillator();
   toneGain = audioCtx.createGain();
@@ -133,8 +133,8 @@ function updateRateReadout(val) {
 }
 
 // --- Start / Stop ---
-startBtn.addEventListener('click', () => {
-  initAudio();
+startBtn.addEventListener('click', async () => {
+  await initAudio();
   playing = !playing;
   startBtn.textContent = playing ? 'STOP' : 'START';
   startBtn.classList.toggle('playing', playing);
@@ -180,4 +180,4 @@ document.getElementById('sel-wave').addEventListener('change', e => {
 });
 
 // Initial display
-scoreNum.textContent = '0';
+scoreNum.textContent = P.score;
