@@ -1,11 +1,13 @@
 // Sidewalk Zero — sound.js (sound lab)
 
-// --- State ---
+// --- State (defaults mirror current app.js) ---
 let P = {
   score    : 200,
-  maxRate  : 25,
-  clickLen : 12,
-  rateDiv  : 8,
+  maxRate  : 4,     // clicks/sec at score 999
+  rateExp  : 2.0,   // curve shape: 1=linear, 2=quadratic, 3=cubic
+  clickLen : 30,    // ms
+  decayExp : 3.0,   // envelope decay: low=baritone, high=crisp
+  clickGain: 0.8,
   minFreq  : 80,
   maxFreq  : 1000,
   maxGain  : 0.25,
@@ -29,17 +31,16 @@ const modeOpts   = document.querySelectorAll('.mode-opt');
 const clickSect  = document.getElementById('click-params');
 const toneSect   = document.getElementById('tone-params');
 
-// --- scoreToColor (mirrors app.js, uses RED_THRESHOLD = 418) ---
+// --- scoreToColor (mirrors app.js) ---
 function scoreToColor(val) {
-  const RED = 418;
-  const t     = Math.min(1, val / RED);
+  const t     = Math.min(1, val / 418);
   const hue   = Math.round(120 - 120 * t);
   const sat   = Math.round(40  + 45  * t);
   const light = Math.round(6   + 14  * t);
   return `hsl(${hue}, ${sat}%, ${light}%)`;
 }
 
-// --- Audio init (must be called from user gesture) ---
+// --- Audio init ---
 async function initAudio() {
   if (audioCtx) { await audioCtx.resume(); return; }
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -56,32 +57,41 @@ async function initAudio() {
 }
 
 // --- Click engine ---
+function clickRate(score) {
+  if (score === 0) return 0;
+  return P.maxRate * Math.pow(score / 999, P.rateExp);
+}
+
 function fireClick() {
   if (!audioCtx) return;
   const len = Math.floor(audioCtx.sampleRate * (P.clickLen / 1000));
   const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
   const d   = buf.getChannelData(0);
   for (let i = 0; i < len; i++) {
-    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, P.decayExp);
   }
   const src  = audioCtx.createBufferSource();
   const gain = audioCtx.createGain();
   src.buffer = buf;
-  gain.gain.value = 0.5;
+  gain.gain.value = P.clickGain;
   src.connect(gain);
   gain.connect(audioCtx.destination);
   src.start();
 }
 
 function stopClicks() {
-  if (clickTimer) { clearInterval(clickTimer); clickTimer = null; }
+  if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
 }
 
-function applyClicks() {
-  stopClicks();
+function scheduleNextClick() {
   if (!playing || P.mode !== 'click') return;
-  const rate = P.score === 0 ? 0 : Math.max(0.2, Math.min(P.maxRate, P.score / P.rateDiv));
-  if (rate > 0) clickTimer = setInterval(fireClick, 1000 / rate);
+  const rate = clickRate(P.score);
+  if (rate === 0) { updateRateReadout(0); return; }
+  const delay = -Math.log(Math.random()) / rate * 1000;
+  clickTimer = setTimeout(() => {
+    fireClick();
+    scheduleNextClick();
+  }, delay);
   updateRateReadout(rate);
 }
 
@@ -93,13 +103,8 @@ function applyTone() {
   const gain = P.score === 0 ? 0 : Math.max(0.04, t * P.maxGain);
   toneOsc.type = P.wave;
   toneOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.1);
-  if (playing) {
-    toneGain.gain.setTargetAtTime(gain, audioCtx.currentTime, 0.1);
-    updateRateReadout(`${Math.round(freq)} Hz`);
-  } else {
-    toneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
-    rateOut.textContent = '';
-  }
+  toneGain.gain.setTargetAtTime(playing ? gain : 0, audioCtx.currentTime, 0.1);
+  updateRateReadout(`${Math.round(freq)} Hz`);
 }
 
 function silenceTone() {
@@ -120,7 +125,8 @@ function update() {
 
   if (P.mode === 'click') {
     silenceTone();
-    applyClicks();
+    stopClicks();
+    scheduleNextClick();
   } else {
     stopClicks();
     applyTone();
@@ -129,7 +135,7 @@ function update() {
 
 function updateRateReadout(val) {
   rateOut.textContent = typeof val === 'number'
-    ? (val === 0 ? 'silent' : `${val.toFixed(1)} clicks / sec`)
+    ? (val === 0 ? 'silent' : `${val.toFixed(2)} clicks / sec`)
     : val;
 }
 
@@ -140,7 +146,7 @@ startBtn.addEventListener('click', async () => {
   playing = !playing;
   startBtn.textContent = playing ? 'STOP' : 'START';
   startBtn.classList.toggle('playing', playing);
-  if (playing) fireClick();  // immediate feedback click
+  if (playing) fireClick();
   update();
 });
 
@@ -157,30 +163,31 @@ modeOpts.forEach(btn => {
 
 // --- Slider wiring ---
 const sliderDefs = [
-  { id: 'sl-score',   valId: 'val-score',   key: 'score',    fmt: v => v          },
-  { id: 'sl-maxrate', valId: 'val-maxrate',  key: 'maxRate',  fmt: v => `${v} /sec`},
-  { id: 'sl-clicklen',valId: 'val-clicklen', key: 'clickLen', fmt: v => `${v} ms`  },
-  { id: 'sl-ratediv', valId: 'val-ratediv',  key: 'rateDiv',  fmt: v => v          },
-  { id: 'sl-minfreq', valId: 'val-minfreq',  key: 'minFreq',  fmt: v => `${v} Hz`  },
-  { id: 'sl-maxfreq', valId: 'val-maxfreq',  key: 'maxFreq',  fmt: v => `${v} Hz`  },
-  { id: 'sl-maxgain', valId: 'val-maxgain',  key: 'maxGain',  fmt: v => v          },
+  { id: 'sl-score',     valId: 'val-score',     key: 'score',     fmt: v => v,              parse: 'int'   },
+  { id: 'sl-maxrate',   valId: 'val-maxrate',   key: 'maxRate',   fmt: v => `${v} /sec`,    parse: 'float' },
+  { id: 'sl-rateexp',   valId: 'val-rateexp',   key: 'rateExp',   fmt: v => v,              parse: 'float' },
+  { id: 'sl-clicklen',  valId: 'val-clicklen',  key: 'clickLen',  fmt: v => `${v} ms`,      parse: 'int'   },
+  { id: 'sl-decayexp',  valId: 'val-decayexp',  key: 'decayExp',  fmt: v => v,              parse: 'float' },
+  { id: 'sl-clickgain', valId: 'val-clickgain', key: 'clickGain', fmt: v => v,              parse: 'float' },
+  { id: 'sl-minfreq',   valId: 'val-minfreq',   key: 'minFreq',   fmt: v => `${v} Hz`,      parse: 'int'   },
+  { id: 'sl-maxfreq',   valId: 'val-maxfreq',   key: 'maxFreq',   fmt: v => `${v} Hz`,      parse: 'int'   },
+  { id: 'sl-maxgain',   valId: 'val-maxgain',   key: 'maxGain',   fmt: v => v,              parse: 'float' },
 ];
 
 for (const def of sliderDefs) {
   const sl  = document.getElementById(def.id);
   const val = document.getElementById(def.valId);
   sl.addEventListener('input', () => {
-    P[def.key] = def.key === 'maxGain' ? parseFloat(sl.value) : parseInt(sl.value, 10);
-    val.textContent = def.fmt(def.key === 'maxGain' ? parseFloat(sl.value) : parseInt(sl.value, 10));
+    const v = def.parse === 'float' ? parseFloat(sl.value) : parseInt(sl.value, 10);
+    P[def.key] = v;
+    val.textContent = def.fmt(v);
     update();
   });
 }
 
-// Waveform select
 document.getElementById('sel-wave').addEventListener('change', e => {
   P.wave = e.target.value;
   if (toneOsc) toneOsc.type = P.wave;
 });
 
-// Initial display
 scoreNum.textContent = P.score;
