@@ -23,6 +23,7 @@ let toneGain   = null;
 const displayEl  = document.getElementById('display');
 const scoreNum   = document.getElementById('score-num');
 const rateOut    = document.getElementById('rate-readout');
+const ctxState   = document.getElementById('ctx-state');
 const startBtn   = document.getElementById('start-btn');
 const modeOpts   = document.querySelectorAll('.mode-opt');
 const clickSect  = document.getElementById('click-params');
@@ -135,9 +136,11 @@ function updateRateReadout(val) {
 // --- Start / Stop ---
 startBtn.addEventListener('click', async () => {
   await initAudio();
+  ctxState.textContent = `ctx: ${audioCtx.state}`;
   playing = !playing;
   startBtn.textContent = playing ? 'STOP' : 'START';
   startBtn.classList.toggle('playing', playing);
+  if (playing) fireClick();  // immediate feedback click
   update();
 });
 
