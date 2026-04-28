@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Sidewalk Zero</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="screen">
+
+    <div id="loading-view">
+      <div class="title">SIDEWALK ZERO</div>
+      <div id="load-status">loading...</div>
+    </div>
+
+    <div id="ready-view" hidden>
+      <div class="title">SIDEWALK ZERO</div>
+      <div id="incident-count"></div>
+      <button id="begin-btn">BEGIN</button>
+    </div>
+
+    <div id="main-view" hidden>
+      <div id="reading">0</div>
+      <div id="controls">
+        <button id="mute-btn">SOUND OFF</button>
+        <button id="mode-btn">CLICK</button>
+      </div>
+    </div>
+
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
