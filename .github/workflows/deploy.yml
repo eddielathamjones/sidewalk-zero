@@ -1,0 +1,33 @@
+# Pulls the latest code on the home server and rebuilds the Docker container
+# whenever main is updated.
+#
+# One-time setup:
+#   1. Register a self-hosted runner for this repo:
+#      GitHub → repo → Settings → Actions → Runners → New self-hosted runner
+#      Follow the instructions on the server (same runner host as other GIS projects)
+#   2. Add DEPLOY_PATH as a repository variable:
+#      GitHub → repo → Settings → Secrets and variables → Actions → Variables
+#      Name: DEPLOY_PATH  Value: /home/eddie/repos/sidewalk-zero
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Pull and rebuild
+    runs-on: self-hosted
+
+    steps:
+      - name: Pull latest changes
+        run: git -C ${{ vars.DEPLOY_PATH }} pull origin main
+
+      - name: Rebuild and restart container
+        run: docker compose -f ${{ vars.DEPLOY_PATH }}/docker-compose.yml up -d --build
+
+      - name: Confirm
+        run: |
+          echo "Deployed at $(date)"
+          echo "HEAD: $(git -C ${{ vars.DEPLOY_PATH }} rev-parse --short HEAD)"
