@@ -25,7 +25,7 @@ jobs:
         run: git -C ${{ vars.DEPLOY_PATH }} pull origin main
 
       - name: Rebuild and restart container
-        run: docker compose -f ${{ vars.DEPLOY_PATH }}/docker-compose.yml up -d --build
+        run: docker compose -f /home/eddie/docker/gis/docker-compose.yml up -d --build sidewalk-zero
 
       - name: Confirm
         run: |
