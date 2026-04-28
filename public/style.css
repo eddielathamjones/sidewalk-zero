@@ -165,7 +165,12 @@ html, body {
 }
 
 #mute-btn.active,
-#omni-btn.active {
+#omni-btn.active,
+#vib-btn.active {
   border-color: rgba(232, 232, 232, 0.6);
   opacity: 1;
+}
+
+#vib-btn.no-vibrate {
+  display: none;
 }
