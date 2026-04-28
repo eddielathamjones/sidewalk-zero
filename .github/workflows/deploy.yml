@@ -2,11 +2,10 @@
 # and purges the Cloudflare edge cache whenever main is updated.
 #
 # One-time setup:
-#   1. DEPLOY_PATH repo variable (already set):
-#      /home/eddie/repos/sidewalk-zero
-#   2. CF_ZONE_ID repo secret — find in Cloudflare dashboard → eddielathamjones.com → Overview → right sidebar
+#   1. DEPLOY_PATH repo variable (already set): /home/eddie/repos/sidewalk-zero
+#   2. CF_ZONE_ID repo secret — Cloudflare dashboard → eddielathamjones.com → Overview → right sidebar
 #   3. CF_API_TOKEN repo secret — Cloudflare dashboard → My Profile → API Tokens
-#      → Create Token → use "Cache Purge" template, scope to eddielathamjones.com zone
+#      → Create Token → Cache Purge template, scope to eddielathamjones.com zone
 
 name: Deploy
 
@@ -27,12 +26,15 @@ jobs:
         run: docker compose -f /home/eddie/docker/gis/docker-compose.yml up -d --build sidewalk-zero
 
       - name: Purge Cloudflare edge cache
-        if: ${{ secrets.CF_API_TOKEN != '' }}
+        continue-on-error: true
+        env:
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         run: |
-          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CF_ZONE_ID }}/purge_cache" \
-            -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}" \
+          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
             -H "Content-Type: application/json" \
-            --data '{"purge_everything":true}' | grep -o '"success":[a-z]*'
+            -d '{"purge_everything":true}' | grep -o '"success":[a-z]*'
 
       - name: Confirm
         run: |
