@@ -54,16 +54,33 @@ function distMeters(lat1, lon1, lat2, lon2) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-// Returns raw score. heading is degrees 0-360 (null = no directional weighting, added in V5).
+// Compass bearing from point 1 → point 2, degrees 0–360 clockwise from north
+function bearingTo(lat1, lon1, lat2, lon2) {
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const lat1R = lat1 * Math.PI / 180;
+  const lat2R = lat2 * Math.PI / 180;
+  const y = Math.sin(dLon) * Math.cos(lat2R);
+  const x = Math.cos(lat1R) * Math.sin(lat2R) - Math.sin(lat1R) * Math.cos(lat2R) * Math.cos(dLon);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+// Returns raw score. heading degrees 0–360 (null = omni, full weight all directions).
 function computeScore(userLat, userLon, heading = null) {
   if (!incidents) return 0;
   const R2 = REFERENCE_DIST_M * REFERENCE_DIST_M;
   let score = 0;
   for (let i = 0; i < incidents.length; i += 2) {
-    const d = distMeters(userLat, userLon, incidents[i], incidents[i + 1]);
+    const iLat = incidents[i];
+    const iLon = incidents[i + 1];
+    const d = distMeters(userLat, userLon, iLat, iLon);
     if (d > RADIUS_M) continue;
-    score += 1 / (1 + (d * d) / R2);
-    // V5: multiply by directional weight here
+    let w = 1 / (1 + (d * d) / R2);
+    if (heading !== null && d > 10) {
+      const b    = bearingTo(userLat, userLon, iLat, iLon);
+      const diff = ((b - heading + 540) % 360) - 180;  // –180..+180
+      w *= Math.max(0, Math.cos(diff * Math.PI / 180)); // 1 ahead, 0 beside, 0 behind
+    }
+    score += w;
   }
   return score;
 }
@@ -92,9 +109,45 @@ function applyScore(score) {
 beginBtn.addEventListener('click', () => {
   readyView.hidden = true;
   mainView.hidden = false;
-  initAudio();   // must happen inside a user gesture to unlock iOS audio
+  initAudio();              // must happen inside a user gesture to unlock iOS audio
+  requestCompassPermission(); // iOS 13+ requires user gesture for orientation
   startReading();
 });
+
+// ---- Compass ----
+
+let currentHeading = null;
+
+async function requestCompassPermission() {
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    // iOS 13+
+    try {
+      const result = await DeviceOrientationEvent.requestPermission();
+      if (result === 'granted') {
+        window.addEventListener('deviceorientation', handleOrientation);
+      } else {
+        console.log('[sw0] orientation permission denied');
+      }
+    } catch (e) {
+      console.log('[sw0] orientation permission error:', e);
+    }
+  } else {
+    // Android / desktop — no permission call needed
+    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+    window.addEventListener('deviceorientation', handleOrientation, true);
+  }
+}
+
+function handleOrientation(e) {
+  if (e.webkitCompassHeading != null) {
+    // iOS: reliable magnetic heading, 0 = north, clockwise
+    currentHeading = e.webkitCompassHeading;
+  } else if (e.alpha != null) {
+    // Android absolute event: alpha=0 = north, counterclockwise
+    currentHeading = (360 - e.alpha) % 360;
+  }
+}
 
 // ---- GPS ----
 
@@ -113,8 +166,8 @@ function startReading() {
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
       const { latitude, longitude, accuracy } = pos.coords;
-      console.log(`[sw0] position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} ±${Math.round(accuracy)}m`);
-      const score = computeScore(latitude, longitude);
+      console.log(`[sw0] position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} ±${Math.round(accuracy)}m heading: ${currentHeading}`);
+      const score = computeScore(latitude, longitude, currentHeading);
       applyScore(score);
       setStatus(`±${Math.round(accuracy)}m`);
     },
