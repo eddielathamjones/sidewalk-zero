@@ -8,6 +8,7 @@ const loadStatus    = document.getElementById('load-status');
 const incidentCount = document.getElementById('incident-count');
 const beginBtn      = document.getElementById('begin-btn');
 const readingEl     = document.getElementById('reading');
+const statusEl      = document.getElementById('status');
 const muteBtn       = document.getElementById('mute-btn');
 const modeBtn       = document.getElementById('mode-btn');
 
@@ -18,12 +19,10 @@ const DISPLAY_SCALE    = 400;  // raw score × DISPLAY_SCALE = display number
 const YELLOW_THRESHOLD = 40;   // display number where screen turns amber
 const RED_THRESHOLD    = 150;  // display number where screen turns red
 
-// --- Demo location (V2 only — replaced by GPS in V3) ---
-// Pharr, TX (US-83 corridor) — 100m from a 2023 fatality cluster.
-// Move DEMO_LAT to 25.92269 to stand on the hotspot and see 999.
-// Move it to 25.92538 to see the green zone (~19).
-const DEMO_LAT = 25.92359;
-const DEMO_LON = -97.43182;
+// --- Demo coordinates (kept for offline testing) ---
+// Pharr TX cluster: 25.92269, -97.43182 → display 999
+// 100m offset:      25.92359, -97.43182 → display ~168
+// 300m offset:      25.92538, -97.43182 → display ~19
 
 // Packed float32 array: [lat0, lon0, lat1, lon1, ...]
 let incidents = null;
@@ -95,10 +94,43 @@ beginBtn.addEventListener('click', () => {
   startReading();
 });
 
+// ---- GPS ----
+
+let watchId = null;
+
 function startReading() {
-  // V3: replace body of this function with GPS watchPosition
-  const score = computeScore(DEMO_LAT, DEMO_LON);
-  applyScore(score);
+  if (!navigator.geolocation) {
+    setStatus('geolocation not available');
+    return;
+  }
+
+  setStatus('locating...');
+
+  watchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const { latitude, longitude, accuracy } = pos.coords;
+      const score = computeScore(latitude, longitude);
+      applyScore(score);
+      setStatus(accuracy < 20 ? '' : `±${Math.round(accuracy)}m`);
+    },
+    (err) => {
+      setStatus(gpsErrorMessage(err));
+    },
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+  );
+}
+
+function gpsErrorMessage(err) {
+  switch (err.code) {
+    case 1: return 'location access denied';
+    case 2: return 'location unavailable';
+    case 3: return 'location timed out';
+    default: return 'location error';
+  }
+}
+
+function setStatus(msg) {
+  statusEl.textContent = msg;
 }
 
 loadIncidents();

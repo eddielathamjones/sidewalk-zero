@@ -75,6 +75,15 @@ html, body {
   justify-content: center;
 }
 
+#status {
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  opacity: 0.4;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+  min-height: 1em;
+}
+
 #reading {
   font-size: clamp(5rem, 28vw, 14rem);
   font-weight: 400;
