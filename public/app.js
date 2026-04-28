@@ -11,6 +11,7 @@ const readingEl     = document.getElementById('reading');
 const statusEl      = document.getElementById('status');
 const muteBtn       = document.getElementById('mute-btn');
 const modeBtn       = document.getElementById('mode-btn');
+const omniBtn       = document.getElementById('omni-btn');
 const radiusSlider  = document.getElementById('radius-slider');
 const radiusLabel   = document.getElementById('radius-label');
 
@@ -116,6 +117,17 @@ beginBtn.addEventListener('click', () => {
   startReading();
 });
 
+// ---- Omni mode ----
+
+let omniMode = true;
+
+omniBtn.addEventListener('click', () => {
+  omniMode = !omniMode;
+  omniBtn.textContent = omniMode ? 'OMNI' : 'DIR';
+  omniBtn.classList.toggle('active', omniMode);
+  if (lastLat !== null) applyScore(computeScore(lastLat, lastLon, omniMode ? null : currentHeading));
+});
+
 // ---- Compass ----
 
 let currentHeading = null;
@@ -173,7 +185,7 @@ function startReading() {
       lastLat = latitude;
       lastLon = longitude;
       console.log(`[sw0] position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} ±${Math.round(accuracy)}m heading: ${currentHeading}`);
-      const score = computeScore(latitude, longitude, currentHeading);
+      const score = computeScore(latitude, longitude, omniMode ? null : currentHeading);
       applyScore(score);
       setStatus(`GPS ±${Math.round(accuracy)}m`);
     },

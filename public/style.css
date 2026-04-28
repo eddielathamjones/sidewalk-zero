@@ -164,7 +164,8 @@ html, body {
   background: rgba(232, 232, 232, 0.08);
 }
 
-#mute-btn.active {
+#mute-btn.active,
+#omni-btn.active {
   border-color: rgba(232, 232, 232, 0.6);
   opacity: 1;
 }
