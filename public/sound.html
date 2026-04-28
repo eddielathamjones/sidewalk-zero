@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sidewalk Zero — Sound Lab</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: #0d0d0d;
+      color: #e8e8e8;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    #app {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Score display — left column, mirrors main app */
+    #display {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.3s ease;
+    }
+
+    #score-num {
+      font-size: clamp(5rem, 22vw, 14rem);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      opacity: 0.95;
+    }
+
+    #rate-readout {
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      opacity: 0.45;
+      margin-top: 1.2rem;
+      text-transform: uppercase;
+      min-height: 1em;
+    }
+
+    /* Right panel */
+    #panel {
+      width: 300px;
+      min-width: 300px;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      background: #0d0d0d;
+      border-left: 1px solid #1e1e1e;
+    }
+
+    .section {
+      padding: 0.9rem 1rem;
+      border-bottom: 1px solid #1e1e1e;
+    }
+
+    .section-title {
+      font-size: 0.52rem;
+      letter-spacing: 0.22em;
+      opacity: 0.35;
+      text-transform: uppercase;
+      margin-bottom: 0.7rem;
+    }
+
+    .param-row {
+      margin-bottom: 0.7rem;
+    }
+
+    .param-row:last-child { margin-bottom: 0; }
+
+    .param-row label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.58rem;
+      letter-spacing: 0.1em;
+      opacity: 0.6;
+      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+    }
+
+    .param-row label span { opacity: 1; color: #e8e8e8; }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 2px;
+      background: rgba(232,232,232,0.2);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(232,232,232,0.7);
+      cursor: pointer;
+    }
+
+    input[type=range]::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(232,232,232,0.7);
+      cursor: pointer;
+    }
+
+    /* Start / Stop button */
+    #start-btn {
+      width: 100%;
+      background: none;
+      border: 1px solid rgba(232,232,232,0.35);
+      color: #e8e8e8;
+      font-family: inherit;
+      font-size: 0.7rem;
+      letter-spacing: 0.25em;
+      padding: 0.9rem;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    #start-btn.playing {
+      border-color: rgba(232,232,232,0.7);
+      background: rgba(232,232,232,0.06);
+    }
+
+    /* Mode toggle */
+    #mode-toggle {
+      display: flex;
+      gap: 0;
+    }
+
+    .mode-opt {
+      flex: 1;
+      background: none;
+      border: 1px solid rgba(232,232,232,0.25);
+      color: #e8e8e8;
+      font-family: inherit;
+      font-size: 0.62rem;
+      letter-spacing: 0.2em;
+      padding: 0.55rem;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: border-color 0.2s, background 0.2s;
+      opacity: 0.4;
+    }
+
+    .mode-opt:first-child { border-right: none; }
+
+    .mode-opt.active {
+      opacity: 1;
+      border-color: rgba(232,232,232,0.6);
+      background: rgba(232,232,232,0.06);
+    }
+
+    /* Param sections hidden when not the active mode */
+    #click-params.hidden,
+    #tone-params.hidden { display: none; }
+
+    @media (max-width: 600px) {
+      #app { flex-direction: column; }
+      #display { flex: 1; min-height: 0; }
+      #panel { width: 100%; min-width: 0; height: 320px; min-height: 320px;
+               border-left: none; border-top: 1px solid #1e1e1e; overflow-y: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+
+    <div id="display">
+      <div id="score-num">0</div>
+      <div id="rate-readout"></div>
+    </div>
+
+    <div id="panel">
+
+      <div class="section">
+        <button id="start-btn">START</button>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Score</div>
+        <div class="param-row">
+          <label>Danger Score <span id="val-score">0</span></label>
+          <input id="sl-score" type="range" min="0" max="999" step="1" value="0">
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Mode</div>
+        <div id="mode-toggle">
+          <button class="mode-opt active" data-mode="click">CLICK</button>
+          <button class="mode-opt"        data-mode="tone">TONE</button>
+        </div>
+      </div>
+
+      <div class="section" id="click-params">
+        <div class="section-title">Click Params</div>
+        <div class="param-row">
+          <label>Max Rate <span id="val-maxrate">25 /sec</span></label>
+          <input id="sl-maxrate" type="range" min="1" max="60" step="1" value="25">
+        </div>
+        <div class="param-row">
+          <label>Length <span id="val-clicklen">12 ms</span></label>
+          <input id="sl-clicklen" type="range" min="2" max="60" step="1" value="12">
+        </div>
+        <div class="param-row">
+          <label>Rate Divisor <span id="val-ratediv">8</span></label>
+          <input id="sl-ratediv" type="range" min="1" max="50" step="1" value="8">
+        </div>
+      </div>
+
+      <div class="section hidden" id="tone-params">
+        <div class="section-title">Tone Params</div>
+        <div class="param-row">
+          <label>Min Freq <span id="val-minfreq">80 Hz</span></label>
+          <input id="sl-minfreq" type="range" min="20" max="500" step="1" value="80">
+        </div>
+        <div class="param-row">
+          <label>Max Freq <span id="val-maxfreq">1000 Hz</span></label>
+          <input id="sl-maxfreq" type="range" min="100" max="2000" step="10" value="1000">
+        </div>
+        <div class="param-row">
+          <label>Max Gain <span id="val-maxgain">0.25</span></label>
+          <input id="sl-maxgain" type="range" min="0.01" max="1" step="0.01" value="0.25">
+        </div>
+        <div class="param-row">
+          <label>Waveform</label>
+          <select id="sel-wave">
+            <option value="sawtooth" selected>Sawtooth</option>
+            <option value="sine">Sine</option>
+            <option value="square">Square</option>
+            <option value="triangle">Triangle</option>
+          </select>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <script src="sound.js"></script>
+</body>
+</html>
