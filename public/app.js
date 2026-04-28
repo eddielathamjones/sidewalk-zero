@@ -84,6 +84,7 @@ function applyScore(score) {
   const display = Math.min(999, Math.round(score * DISPLAY_SCALE));
   readingEl.textContent = display;
   screenEl.style.backgroundColor = scoreToColor(display);
+  updateAudio(display);
 }
 
 // ---- Main flow ----
@@ -91,6 +92,7 @@ function applyScore(score) {
 beginBtn.addEventListener('click', () => {
   readyView.hidden = true;
   mainView.hidden = false;
+  initAudio();   // must happen inside a user gesture to unlock iOS audio
   startReading();
 });
 
@@ -138,5 +140,91 @@ function gpsErrorMessage(err) {
 function setStatus(msg) {
   statusEl.textContent = msg;
 }
+
+// ---- Audio ----
+
+let audioCtx    = null;
+let soundOn     = true;
+let soundMode   = 'click';   // 'click' | 'tone'
+let clickTimer  = null;
+let toneOsc     = null;
+let toneGain    = null;
+let lastDisplay = 0;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  audioCtx.resume();
+
+  // Tone engine — always running, gain set to 0 when silent
+  toneOsc  = audioCtx.createOscillator();
+  toneGain = audioCtx.createGain();
+  toneOsc.type = 'sawtooth';
+  toneOsc.frequency.value = 80;
+  toneGain.gain.value = 0;
+  toneOsc.connect(toneGain);
+  toneGain.connect(audioCtx.destination);
+  toneOsc.start();
+}
+
+function fireClick() {
+  if (!audioCtx || !soundOn || soundMode !== 'click') return;
+  const len = Math.floor(audioCtx.sampleRate * 0.012);
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const d   = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+  }
+  const src  = audioCtx.createBufferSource();
+  const gain = audioCtx.createGain();
+  src.buffer = buf;
+  gain.gain.value = 0.5;
+  src.connect(gain);
+  gain.connect(audioCtx.destination);
+  src.start();
+}
+
+function updateAudio(display) {
+  lastDisplay = display;
+  if (!audioCtx || !soundOn) return;
+
+  if (soundMode === 'click') {
+    // clicks/sec: 0 when silent, 0.2 minimum when any danger, up to 25 at max
+    const rate = display === 0 ? 0 : Math.max(0.2, Math.min(25, display / 8));
+    if (clickTimer) { clearInterval(clickTimer); clickTimer = null; }
+    if (rate > 0) clickTimer = setInterval(fireClick, 1000 / rate);
+  } else {
+    // tone: 80 Hz quiet hum → 1000 Hz at max
+    const t    = Math.min(1, display / 999);
+    const freq = 80 + t * 920;
+    const gain = display === 0 ? 0 : Math.max(0.04, t * 0.25);
+    toneOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.15);
+    toneGain.gain.setTargetAtTime(gain, audioCtx.currentTime, 0.15);
+  }
+}
+
+muteBtn.addEventListener('click', () => {
+  if (!audioCtx) return;
+  soundOn = !soundOn;
+  muteBtn.textContent = soundOn ? 'MUTE' : 'UNMUTE';
+  if (!soundOn) {
+    if (clickTimer) { clearInterval(clickTimer); clickTimer = null; }
+    toneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+  } else {
+    updateAudio(lastDisplay);
+  }
+});
+
+modeBtn.addEventListener('click', () => {
+  soundMode = soundMode === 'click' ? 'tone' : 'click';
+  modeBtn.textContent = soundMode.toUpperCase();
+  // Silence whichever engine we're leaving
+  if (soundMode === 'tone') {
+    if (clickTimer) { clearInterval(clickTimer); clickTimer = null; }
+  } else {
+    toneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+  }
+  updateAudio(lastDisplay);
+});
 
 loadIncidents();
