@@ -175,7 +175,7 @@ function startReading() {
       console.log(`[sw0] position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} ±${Math.round(accuracy)}m heading: ${currentHeading}`);
       const score = computeScore(latitude, longitude, currentHeading);
       applyScore(score);
-      setStatus(`±${Math.round(accuracy)}m`);
+      setStatus(`GPS ±${Math.round(accuracy)}m`);
     },
     (err) => {
       console.log(`[sw0] geolocation error: code=${err.code} message=${err.message}`);
