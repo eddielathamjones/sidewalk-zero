@@ -40,7 +40,7 @@ async function loadIncidents() {
     const buf = await res.arrayBuffer();
     incidents = new Float32Array(buf);
     const count = incidents.length / 2;
-    incidentCount.textContent = `${count.toLocaleString()} incidents loaded`;
+    incidentCount.textContent = count.toLocaleString();
     loadingView.hidden = true;
     readyView.hidden = false;
   } catch (err) {
@@ -300,7 +300,7 @@ function updateAudio(display) {
 muteBtn.addEventListener('click', () => {
   if (!audioCtx) return;
   soundOn = !soundOn;
-  muteBtn.textContent = soundOn ? 'MUTE' : 'UNMUTE';
+  muteBtn.classList.toggle('active', !soundOn);
   if (!soundOn) {
     stopClicks();
     toneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
@@ -327,7 +327,6 @@ vibBtn.addEventListener('click', () => {
 
 radiusSlider.addEventListener('input', () => {
   RADIUS_M = parseInt(radiusSlider.value, 10);
-  radiusLabel.textContent = `RADIUS: ${RADIUS_M}m`;
   if (lastLat !== null) applyScore(computeScore(lastLat, lastLon, currentHeading));
 });
 
