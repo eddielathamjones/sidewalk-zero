@@ -305,6 +305,8 @@ html, body {
   font-size: 24px;
   letter-spacing: 0.4em;
   -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .begin-fill {
   position: absolute;

@@ -120,7 +120,7 @@
   })();
 
   /* ── 3. Hold-to-begin ───────────────────────────────────── */
-  const HOLD_MS = 1400;
+  const HOLD_MS = 600;
   let holdTimer = null;
   let isActivated = false;
 
