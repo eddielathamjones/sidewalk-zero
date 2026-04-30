@@ -170,8 +170,7 @@
 
   function updateSensitivity() {
     const v     = parseInt(radiusSlider.value, 10); // 50–5000
-    // Invert: small radius = high sensitivity
-    const norm  = 1 - (v - 50) / (5000 - 50);      // 0(low) → 1(high)
+    const norm  = (v - 50) / (5000 - 50);           // 0(low/small) → 1(high/large)
     const segs  = Math.round(norm * 8);              // 0–8 segs lit
 
     ssegEls.forEach((el, i) => {
@@ -194,9 +193,7 @@
         const rect = segWrap.getBoundingClientRect();
         const cx   = (e.touches ? e.touches[0].clientX : e.clientX);
         const pct  = Math.max(0, Math.min(1, (cx - rect.left) / rect.width));
-        // pct 0→1 maps to high→low sensitivity (inverted)
-        const invPct = 1 - pct;
-        const val  = Math.round(50 + invPct * (5000 - 50));
+        const val  = Math.round(50 + pct * (5000 - 50));
         radiusSlider.value = val;
         radiusSlider.dispatchEvent(new Event('input', { bubbles: true }));
         updateSensitivity();
