@@ -7,38 +7,176 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Sidewalk Zero</title>
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
   <div id="screen">
 
+    <!-- scan-line overlay (applies to all views) -->
+    <div id="scan-lines" aria-hidden="true"></div>
+
+    <!-- ── LOADING VIEW ───────────────────────── -->
     <div id="loading-view">
-      <div class="title">SIDEWALK ZERO</div>
-      <div id="load-status">loading...</div>
-    </div>
-
-    <div id="ready-view" hidden>
-      <div class="title">SIDEWALK ZERO</div>
-      <div id="incident-count"></div>
-      <button id="begin-btn">BEGIN</button>
-    </div>
-
-    <div id="main-view" hidden>
-      <div id="reading">—</div>
-      <div id="status"></div>
-      <div id="radius-control">
-        <label id="radius-label" for="radius-slider">RADIUS: 1750m</label>
-        <input id="radius-slider" type="range" min="50" max="5000" step="50" value="1750">
+      <div class="rings" aria-hidden="true">
+        <div class="ring ring-1"></div>
+        <div class="ring ring-2"></div>
+        <div class="ring ring-3"></div>
       </div>
-      <div id="controls">
-        <button id="mute-btn">MUTE</button>
-        <button id="mode-btn">CLICK</button>
-        <button id="omni-btn" class="active">OMNI</button>
-        <button id="vib-btn">VIB</button>
+      <div class="view-inner">
+        <div class="wordmark">SIDEWALK ZERO</div>
+        <div class="meta-label" id="load-status">LOADING 0%</div>
+        <div class="seg-bar" id="load-bar">
+          <div class="seg-bar__track">
+            <div class="seg s1"></div>
+            <div class="seg s2"></div>
+            <div class="seg s3"></div>
+            <div class="seg s4"></div>
+            <div class="seg s5"></div>
+            <div class="seg s6"></div>
+            <div class="seg s7"></div>
+            <div class="seg s8"></div>
+            <div class="seg s9"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sys-row">
+        <span>SYS:OK</span><span>UNIT:01</span>
+      </div>
+    </div>
+
+    <!-- ── READY VIEW ─────────────────────────── -->
+    <div id="ready-view" hidden>
+      <div class="rings" aria-hidden="true">
+        <div class="ring ring-1"></div>
+        <div class="ring ring-2"></div>
+        <div class="ring ring-3"></div>
+      </div>
+      <div class="view-inner">
+        <div class="wordmark">SIDEWALK ZERO</div>
+        <div class="rule"></div>
+        <div class="count-block">
+          <div class="count-num" id="incident-count">—</div>
+          <div class="count-label">PEDESTRIAN<br>FATALITIES</div>
+        </div>
+        <div class="meta-label">UNITED STATES · 2001–2023</div>
+        <div class="rule rule--faint"></div>
+        <button id="begin-btn">
+          <span class="begin-fill" id="begin-fill"></span>
+          <span class="begin-inset"></span>
+          <span class="begin-text" id="begin-text">BEGIN</span>
+        </button>
+      </div>
+      <div class="credit">
+        <a href="https://eddielathamjones.com" target="_blank" rel="noopener noreferrer">
+          eddie latham-jones
+        </a>
+      </div>
+    </div>
+
+    <!-- ── MAIN VIEW ──────────────────────────── -->
+    <div id="main-view" hidden>
+      <!-- glow layers -->
+      <div id="glow-inner" aria-hidden="true"></div>
+      <div id="glow-halo"  aria-hidden="true"></div>
+
+      <div id="main-top">
+        <div class="wordmark wordmark--dim">SIDEWALK ZERO</div>
+      </div>
+
+      <div id="main-center">
+        <div id="danger-label">DANGER INDEX</div>
+        <div id="reading">—</div>
+
+        <!-- analog meter -->
+        <div id="meter">
+          <div id="meter-fill"></div>
+          <div class="meter-tick" style="left:25%"></div>
+          <div class="meter-tick" style="left:50%"></div>
+          <div class="meter-tick" style="left:75%"></div>
+        </div>
+        <div id="meter-ticks-minor">
+          <span></span><span></span><span></span><span></span><span class="t-major"></span>
+          <span></span><span></span><span></span><span></span><span class="t-major"></span>
+          <span></span>
+        </div>
+
+        <div id="status"></div>
+      </div>
+
+      <div id="main-bottom">
+        <!-- sensitivity (replaces radius) -->
+        <div id="sensitivity-wrap">
+          <div id="sensitivity-header">
+            <span id="radius-label">SENSITIVITY</span>
+            <span id="sensitivity-value">MED</span>
+          </div>
+          <!-- visual segments (decorative, synced via app-patch.js) -->
+          <div id="sensitivity-segs">
+            <div class="sseg" data-i="0"></div>
+            <div class="sseg" data-i="1"></div>
+            <div class="sseg" data-i="2"></div>
+            <div class="sseg" data-i="3"></div>
+            <div class="sseg" data-i="4"></div>
+            <div class="sseg" data-i="5"></div>
+            <div class="sseg" data-i="6"></div>
+            <div class="sseg" data-i="7"></div>
+            <div class="sseg" data-i="8"></div>
+          </div>
+          <div id="sensitivity-labels">
+            <span>LOW</span><span>MED</span><span>HIGH</span>
+          </div>
+          <!-- hidden range input — app.js reads this unchanged -->
+          <input id="radius-slider" type="range" min="50" max="5000" step="50" value="1750"
+                 style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;">
+        </div>
+
+        <!-- mode indicator -->
+        <div id="mode-row">
+          <div id="mode-dot"></div>
+          <button id="mode-btn">CLICK</button>
+        </div>
+
+        <!-- toggle row -->
+        <div id="toggle-row">
+          <!-- mute -->
+          <div class="toggle-wrap" id="mute-wrap">
+            <button class="toggle-btn" id="mute-btn">
+              <span class="tog-bracket tog-bracket--l"></span>
+              <span class="tog-pill">
+                <span class="tog-nub"></span>
+              </span>
+              <span class="tog-label">MUTE</span>
+              <span class="tog-bracket tog-bracket--r"></span>
+            </button>
+          </div>
+          <!-- vib -->
+          <div class="toggle-wrap" id="vib-wrap">
+            <button class="toggle-btn" id="vib-btn">
+              <span class="tog-bracket tog-bracket--l"></span>
+              <span class="tog-pill">
+                <span class="tog-nub"></span>
+              </span>
+              <span class="tog-label">VIB</span>
+              <span class="tog-bracket tog-bracket--r"></span>
+            </button>
+          </div>
+          <!-- omni kept in DOM for app.js, visually hidden -->
+          <button id="omni-btn" class="active" style="display:none">OMNI</button>
+        </div>
+      </div>
+
+      <div class="credit">
+        <a href="https://eddielathamjones.com" target="_blank" rel="noopener noreferrer">
+          eddie latham-jones
+        </a>
       </div>
     </div>
 
   </div>
-  <script src="app.js?v=8"></script>
+
+  <script src="app.js?v=9"></script>
+  <script src="app-patch.js?v=9"></script>
 </body>
 </html>
