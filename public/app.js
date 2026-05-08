@@ -1,4 +1,5 @@
 // Sidewalk Zero — app.js
+// Pure math functions live in core.js; this file owns browser state and DOM.
 
 const screenEl      = document.getElementById('screen');
 const loadingView   = document.getElementById('loading-view');
@@ -16,13 +17,6 @@ const vibBtn        = document.getElementById('vib-btn');
 const radiusSlider  = document.getElementById('radius-slider');
 const radiusLabel   = document.getElementById('radius-label');
 
-// --- Tuning constants (adjust during field testing) ---
-const REFERENCE_DIST_M = 129;  // score halves at this distance from a fatality
-let   RADIUS_M         = 1750; // ignore fatalities beyond this
-const DISPLAY_SCALE    = 320;  // raw score × DISPLAY_SCALE = display number
-const YELLOW_THRESHOLD = 92;   // display number where screen turns amber
-const RED_THRESHOLD    = 418;  // display number where screen turns red
-
 // --- Demo coordinates (kept for offline testing) ---
 // Pharr TX cluster: 25.92269, -97.43182 → display 999
 // 100m offset:      25.92359, -97.43182 → display ~168
@@ -30,6 +24,7 @@ const RED_THRESHOLD    = 418;  // display number where screen turns red
 
 // Packed float32 array: [lat0, lon0, lat1, lon1, ...]
 let incidents = null;
+let RADIUS_M  = 1750;  // ignore fatalities beyond this; updated by slider
 
 // ---- Data loader ----
 
@@ -48,58 +43,7 @@ async function loadIncidents() {
   }
 }
 
-// ---- Scoring engine ----
-
-// Flat-earth approximation — accurate to < 0.5% within 1 km, no per-point trig
-function distMeters(lat1, lon1, lat2, lon2) {
-  const cosLat = Math.cos((lat1 + lat2) * 0.5 * Math.PI / 180);
-  const dx = (lon2 - lon1) * cosLat * 111320;
-  const dy = (lat2 - lat1) * 111320;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-// Compass bearing from point 1 → point 2, degrees 0–360 clockwise from north
-function bearingTo(lat1, lon1, lat2, lon2) {
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const lat1R = lat1 * Math.PI / 180;
-  const lat2R = lat2 * Math.PI / 180;
-  const y = Math.sin(dLon) * Math.cos(lat2R);
-  const x = Math.cos(lat1R) * Math.sin(lat2R) - Math.sin(lat1R) * Math.cos(lat2R) * Math.cos(dLon);
-  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-}
-
-// Returns raw score. heading degrees 0–360 (null = omni, full weight all directions).
-function computeScore(userLat, userLon, heading = null) {
-  if (!incidents) return 0;
-  const R2 = REFERENCE_DIST_M * REFERENCE_DIST_M;
-  let score = 0;
-  for (let i = 0; i < incidents.length; i += 2) {
-    const iLat = incidents[i];
-    const iLon = incidents[i + 1];
-    const d = distMeters(userLat, userLon, iLat, iLon);
-    if (d > RADIUS_M) continue;
-    let w = 1 / (1 + (d * d) / R2);
-    if (heading !== null && d > 10) {
-      const b    = bearingTo(userLat, userLon, iLat, iLon);
-      const diff = ((b - heading + 540) % 360) - 180;  // –180..+180
-      w *= Math.max(0, Math.cos(diff * Math.PI / 180)); // 1 ahead, 0 beside, 0 behind
-    }
-    score += w;
-  }
-  return score;
-}
-
 // ---- Display ----
-
-// Maps display value [0..∞] to an HSL background color.
-// 0 → dark green, YELLOW_THRESHOLD → dark amber, RED_THRESHOLD → dark red
-function scoreToColor(val) {
-  const t = Math.min(1, val / RED_THRESHOLD);
-  const hue   = Math.round(120 - 120 * t);  // 120 (green) → 0 (red)
-  const sat   = Math.round(40  + 45  * t);  // 40% → 85%
-  const light = Math.round(6   + 14  * t);  // 6% → 20%
-  return `hsl(${hue}, ${sat}%, ${light}%)`;
-}
 
 function applyScore(score) {
   const display = Math.min(999, Math.round(score * DISPLAY_SCALE));
@@ -127,7 +71,7 @@ omniBtn.addEventListener('click', () => {
   omniMode = !omniMode;
   omniBtn.textContent = omniMode ? 'OMNI' : 'DIR';
   omniBtn.classList.toggle('active', omniMode);
-  if (lastLat !== null) applyScore(computeScore(lastLat, lastLon, omniMode ? null : currentHeading));
+  if (lastLat !== null) applyScore(computeScore(lastLat, lastLon, incidents, RADIUS_M, omniMode ? null : currentHeading));
 });
 
 // ---- Compass ----
@@ -187,7 +131,7 @@ function startReading() {
       lastLat = latitude;
       lastLon = longitude;
       console.log(`[sw0] position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} ±${Math.round(accuracy)}m heading: ${currentHeading}`);
-      const score = computeScore(latitude, longitude, omniMode ? null : currentHeading);
+      const score = computeScore(latitude, longitude, incidents, RADIUS_M, omniMode ? null : currentHeading);
       applyScore(score);
       setStatus(`GPS ±${Math.round(accuracy)}m`);
     },
@@ -199,15 +143,6 @@ function startReading() {
   );
 
   console.log('[sw0] watchPosition registered, watchId:', watchId);
-}
-
-function gpsErrorMessage(err) {
-  switch (err.code) {
-    case 1: return 'location access denied';
-    case 2: return 'location unavailable';
-    case 3: return 'location timed out';
-    default: return 'location error';
-  }
 }
 
 function setStatus(msg) {
@@ -238,12 +173,6 @@ function initAudio() {
   toneOsc.connect(toneGain);
   toneGain.connect(audioCtx.destination);
   toneOsc.start();
-}
-
-function clickRate(display) {
-  // Quadratic curve: sparse at low scores, 14/sec at max
-  if (display === 0) return 0;
-  return 14 * Math.pow(display / 999, 2);
 }
 
 function fireClick() {
@@ -327,7 +256,7 @@ vibBtn.addEventListener('click', () => {
 
 radiusSlider.addEventListener('input', () => {
   RADIUS_M = parseInt(radiusSlider.value, 10);
-  if (lastLat !== null) applyScore(computeScore(lastLat, lastLon, currentHeading));
+  if (lastLat !== null) applyScore(computeScore(lastLat, lastLon, incidents, RADIUS_M, omniMode ? null : currentHeading));
 });
 
 loadIncidents();
